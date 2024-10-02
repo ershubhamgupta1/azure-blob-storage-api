@@ -3,6 +3,7 @@ const express = require('express');
 const multer = require('multer');
 const { BlobServiceClient } = require('@azure/storage-blob');
 const dotenv = require('dotenv');
+const cors = require('cors');
 
 dotenv.config();
 
@@ -20,7 +21,26 @@ const upload = multer({
 const blobServiceClient = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
 const containerClient = blobServiceClient.getContainerClient(process.env.AZURE_STORAGE_CONTAINER_NAME);
 
+app.use(cors());
+
 // API endpoint for uploading an image
+app.get('/images', async (req, res) => {
+    try {
+        const blobs = containerClient.listBlobsFlat();
+        const images = [];
+
+        for await (const blob of blobs) {
+            const url = `https://${process.env.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${process.env.AZURE_STORAGE_CONTAINER_NAME}/${blob.name}`;
+            images.push(url);
+        }
+
+        res.status(200).json(images);
+    } catch (error) {
+        console.error('Error fetching images:', error.message);
+        res.status(500).send('Error fetching images.');
+    }
+});
+
 app.post('/upload', upload.single('image'), async (req, res) => {
     console.log('enter in file upload=====', req.file, req.image, req.body);
     try {
